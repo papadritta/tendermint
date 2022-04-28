@@ -84,7 +84,6 @@ message Commit {
 
 ```proto
 message CommitSig {
-  // remove
   BlockIDFlag               block_id_flag     = 1;
   // If the list is in order, I'm not sure this needs to be in the block
   // at all.
@@ -98,11 +97,82 @@ message CommitSig {
 ```proto
 message BlockID {
   bytes         hash            = 1;
-
   // remove
   PartSetHeader part_set_header = 2; // Q Do we ever use the PartSetHeader from the actual block header to rebuild the block or figure out what to grab?
 }
 ```
+
+## Consolidate CommitSig Information
+
+The CommitSig contains multiple fields that are redundant.  The structure
+contains the `validator_address` of the corresponding validator and the
+timestamp corresponding to the timestamp in the precommit message. Both of these
+data are not necessary and can be removed.
+
+The `validator_address` does not need to be included in the block. The order
+of the validator signatures is stored in the node and verification does not
+rely on being able to ensure that the validator address matches the signature.
+
+The `timestamp` field is no longer meaningful. This field was previously used
+to create the block time when the BFTTime algorithm was in use. With the
+completion of the proposer-based timestamps algorithm, these timestamp field
+is no longer used at all and can be deleted from the block.
+
+### What does this improve?
+
+### Is this backwards compatible?
+
+## Add Proof Of Lock Round Number To Header
+
+The proof of lock round is the most recent round in which the Tendermint
+algorithm observed a super majority of voting power on the network for a block.
+
+Including this value in the block is allow validation of currently
+un-validated metadata. Specifically, including this value will allow Tendermint
+to be certain that the `proposer_address` is correct. Without knowing the round
+number, Tendermint cannot calculate which validator was supposed to propose
+the previous height. Because of this, our validation logic does not check that
+the `proposer_address` included in the block corresponds to the validator that
+proposed the round. Instead, it simply checks that the value is an address
+of one of the known validators.
+
+### What does this improve?
+
+### Is this backwards compatible?
+
+## Remove Chain ID
+
+The `chain_id` is a string selected by the chain operators, usually a
+human-readable name for the network. This value is immutable for the lifetime
+of the chain and is defined in the genesis file. Because this value never
+changes, there's no particular reason to maintain it in every block. Aesthetically,
+it is somewhat pleasing, as if every block in a chain is stamped as part of
+some particular chain. I'm pretty ambivalent on removing it from the structure
+and would be in favor of keeping it despite its redundancy. 
+
+HERE !!!
+
+### What does this improve?
+
+### Is this backwards compatible?
+
+## Remove Validators Hash
+
+## Remove Proposer Address
+
+## Remove Validator Address
+
+## Add Generic Signature Field
+
+### What does this improve?
+
+### Is this backwards compatible?
+
+## Consolidate Block ID
+
+* Remove the silly extra field for block parts. this is data that's useful for
+* fetching the block using the tendermint p2p protocol but isn't very meaningful to
+* the execution or validity of the block.
 
 ### What is the goal of this project?
 
