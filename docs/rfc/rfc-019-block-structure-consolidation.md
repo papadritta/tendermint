@@ -23,7 +23,7 @@ allow external protocols to function more efficiently than if they were removed.
 
 ### Current Block Structure
 
-The current block structure is included here to aid discussion.
+The current block structures are included here to aid discussion.
 
 ```proto
 message Block {
@@ -61,6 +61,12 @@ message Data {
 ```
 
 ```proto
+message EvidenceList {
+  repeated Evidence evidence = 1;
+}
+```
+
+```proto
 message Commit {
   int64              height     = 1;
   int32              round      = 2;
@@ -81,7 +87,7 @@ message CommitSig {
 ```proto
 message BlockID {
   bytes         hash            = 1;
-  PartSetHeader part_set_header = 2; // Q Do we ever use the PartSetHeader from the actual block header to rebuild the block or figure out what to grab?
+  PartSetHeader part_set_header = 2;
 }
 ```
 
@@ -92,20 +98,22 @@ message BlockID {
 The CommitSig contains multiple fields that are redundant. The structure
 contains the `validator_address` of the validator whose signature it contains
 and the timestamp corresponding to the timestamp in the precommit message. Both
-of these data are not necessary and can be removed.
+of these data are not strictly necessary and are candidates for removal.
 
 The `validator_address` does not need to be included in the block. The order
 of the validator signatures is stored in the node and verification does not
-rely on being able to ensure that the validator address matches the signature. # VERIFY THIS
+rely on being able to ensure that the validator address matches the signature.
+This field _is_ used by the light client. The light client may not have the
+exact validator set that matches a particular block but can use the addresses
+to check if it trusts _enough_ of the validators to verify the block. Removing
+the addresses from the block would force the light client to redownload the
+validator set each time it encounters a block with a `validators_hash` that the
+client had not previously encountered.
 
 The `timestamp` field is no longer meaningful. This field was previously used
 to create the block time when the BFTTime algorithm was in use. With the
 implementation of the proposer-based timestamps algorithm, this timestamp field
 is no longer used at all and can be deleted from the block.
-
-### What does this improve?
-
-### Is this backwards compatible?
 
 ## Add Proof Of Lock Round Number To Header
 
@@ -126,10 +134,6 @@ Currently, we include this value in the `Commit` for height `H` which is
 written into the block at height `H+1`. Tendermint can add this value directly
 into the block instead of delaying it until the next block.
 
-### What does this improve?
-
-### Is this backwards compatible?
-
 ## Remove Chain ID
 
 The `chain_id` is a string selected by the chain operators, usually a
@@ -146,15 +150,11 @@ we could easily store the value separately from the block structure in the
 database, although on-disk compression should be able to handle de-duplication
 of that data without any additional code.
 
-### What does this improve?
-
-### Is this backwards compatible?
-
 ## Remove Validators Hash
 
 Both `validators_hash` and `next_validators_hash` are included in the block
-header. However, there is no strong reason to maintain both of these. The 
-`next_validators_hash` contains the same information as is included in the 
+header. However, there is no strong reason to maintain both of these. The
+`next_validators_hash` contains the same information as is included in the
 previous block's `validators_hash`. Any participant that wants to validate the
 current list of validator votes could do so by fetching the previous block's
 header. # How does this impact the light client?
@@ -202,18 +202,18 @@ mechanisms in the future.
 
 ## Consolidate Block ID
 
-The [BlockID][] field comprises the [PartSetHeader][] and the hash of the block.
+The [BlockID][block-id] field comprises the [PartSetHeader][part-set-header] and the hash of the block.
 The `PartSetHeader` is used by nodes to gossip the block by dividing it into
 parts. Nodes receive the `PartSetHeader` from their peers, informing them of
 what pieces of the block to gather. There is no strong reason to include this
 value in the block. Validators will still be able to gossip and validate the
 blocks that they received from their peers using this mechanism even if it is
 not written into the block. The `BlockID` can therefore be consolidated into
-just the hash of the block.
-
-* Remove the silly extra field for block parts. this is data that's useful for
-* fetching the block using the tendermint p2p protocol but isn't very meaningful to
-* the execution or validity of the block.
+just the hash of the block. This is by far the most uncontroversial change
+and there appears to be no good reason _not_ to do it. Further evidence that
+the field is not meaningful can be found in the fact that the field is not
+actually validated to ensure it is correct during block validation. Validation
+only checks that the [field is well formed][psh-check].
 
 ### What is the goal of this project?
 
@@ -226,7 +226,9 @@ consensus proceeded correctly using only the contents of the block.
 4. Operators and developers can debug problems that arise with the state
 machine using the contents of the block.
 
-
 ## References
 
-* TODO
+[light-verify-trusting]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/validation.go#L124
+[part-set-header]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/part_set.go#L94
+[block-id]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/block.go#L1090
+[psh-check]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/part_set.go#L116
