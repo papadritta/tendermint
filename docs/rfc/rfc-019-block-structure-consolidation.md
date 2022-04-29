@@ -151,9 +151,9 @@ algorithm. This value is used to ease gossip by providing nodes participating
 in the peer to peer protocol a reasonable enough way to gather and checksum
 being distributed on the network.
 
-## ChainID
+#### ChainID
 
-The `chain_id` is a string selected by the chain operators, usually a
+The `ChainID` is a string selected by the chain operators, usually a
 human-readable name for the network. This value is immutable for the lifetime
 of the chain and is defined in the genesis file. It is therefore hashed into the
 original block and therefore transitively included as in the Merkle root hash of
