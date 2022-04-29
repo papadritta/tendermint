@@ -93,7 +93,12 @@ message BlockID {
 
 ## Discussion 
 
-## Consolidate CommitSig Information
+This section proposes a list of changes to the current block structure accompanied
+by discussion of the merits of the changes. Where the change is possible but
+would hamper external protocols or make debugging more difficult, that is noted
+in discussion.
+
+### Consolidate CommitSig Information
 
 The CommitSig contains multiple fields that are redundant. The structure
 contains the `validator_address` of the validator whose signature it contains
@@ -108,7 +113,10 @@ exact validator set that matches a particular block but can use the addresses
 to check if it trusts _enough_ of the validators to verify the block. Removing
 the addresses from the block would force the light client to redownload the
 validator set each time it encounters a block with a `validators_hash` that the
-client had not previously encountered.
+client had not previously encountered. In an experimental [run][chain-experiment]
+on the Cosmos Hub, this appears to occur frequently. A program counting the
+validator set changes from height 5200791 to 5210791 counted 4297 changes in the
+validator hash. That's nearly half of the blocks in the range. This change appears
 
 The `timestamp` field is no longer meaningful. This field was previously used
 to create the block time when the BFTTime algorithm was in use. With the
@@ -196,10 +204,6 @@ of list of `CommitSig`s. This would shrink the space needed for each signature,
 albeit mildly, while preparing Tendermint to adopt additional signing
 mechanisms in the future.
 
-### What does this improve?
-
-### Is this backwards compatible?
-
 ## Consolidate Block ID
 
 The [BlockID][block-id] field comprises the [PartSetHeader][part-set-header] and the hash of the block.
@@ -215,20 +219,11 @@ the field is not meaningful can be found in the fact that the field is not
 actually validated to ensure it is correct during block validation. Validation
 only checks that the [field is well formed][psh-check].
 
-### What is the goal of this project?
-
-Remove as much as possible from the block so that:
-
-1. ABCI can still receive enough information to function.
-2. Light clients can quickly prove the state of the blockchain. #REWORD
-3. Nodes performing blocksync to catchup can restore state and verify that
-consensus proceeded correctly using only the contents of the block.
-4. Operators and developers can debug problems that arise with the state
-machine using the contents of the block.
-
 ## References
 
 [light-verify-trusting]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/validation.go#L124
 [part-set-header]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/part_set.go#L94
 [block-id]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/block.go#L1090
 [psh-check]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/types/part_set.go#L116
+[proposer-selection]: https://github.com/tendermint/tendermint/blob/208a15dadf01e4e493c187d8c04a55a61758c3cc/spec/consensus/proposer-selection.md
+[chain-experiment]: https://github.com/williambanfield/tmtools/blob/master/hash-changes/RUN.txt
