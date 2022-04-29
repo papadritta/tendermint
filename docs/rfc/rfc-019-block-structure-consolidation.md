@@ -120,13 +120,12 @@ apart into a few different lines of inquiry.
 consensus algorithm can use proof-of-stake consensus to validate all of the
 properties of the chain that we would like?
 1. How can we create views of the data that can be easily retrieved, stored, and
-verified by the relevant protocols.
+verified by the relevant protocols?
 
-These two concerns are intertwined at the moment as a result
-of how we store and propagate our data but they don't necessarily need to be.
-This document focuses primarily on the first concern by suggesting fields that
-can be completely removed without any loss in the function of our consensus
-algorithm.
+These two concerns are intertwined at the moment as a result of how we store
+and propagate our data but they don't necessarily need to be. This document
+focuses primarily on the first concern by suggesting fields that can be
+completely removed without any loss in the function of our consensus algorithm.
 
 This document also suggests ways that we may update our storage and propagation
 mechanisms to better take advantage of Merkle tree nature of our data.
@@ -138,9 +137,55 @@ mechanisms to better take advantage of Merkle tree nature of our data.
 This section proposes a list of data that could be completely removed from the 
 Merkle tree with no loss to the functionality of our consensus algorithm.
 
-#### CommitSig.timestamp
+#### CommitSig.Timestamp
 
-This field was once used to 
+This field contains the timestamp included in the precommit message that was
+issued for the block. The field was once used to produce the timestamp of the block.
+With the introduction of Proposer-Based Timestamps, This field is no longer used
+in any Tendermint algorithms and can be completely removed.
+
+#### BlockID.PartSetHeader
+
+The [PartSetHeader][part-set-header] is totally irrelevant to the core consensus
+algorithm. This value is used to ease gossip by providing nodes participating
+in the peer to peer protocol a reasonable enough way to gather and checksum
+being distributed on the network.
+
+## ChainID
+
+The `chain_id` is a string selected by the chain operators, usually a
+human-readable name for the network. This value is immutable for the lifetime
+of the chain and is defined in the genesis file. It is therefore hashed into the
+original block and therefore transitively included as in the Merkle root hash of
+every block. The redundant field is a candidate for removal from the root hash
+of each block. However, aesthetically, it's somewhat nice to include in each
+block, as if the block was 'stamped' with the ID. Additionally, re-validating
+the value from genesis would be painful and require reconstituting potentially
+large chains. I'm therefore mildly in favor of maintaining this redundant
+piece of information. We pay almost no storage cost for maintaining this
+identical data, so the only cost is in the time required to hash it into the
+structure.
+
+### Data to add
+
+### ProofOfLockRound
+
+The *proof of lock round* is the round of consensus for a height in which the
+Tendermint algorithm observed a super majority of voting power on the network for
+a block.
+
+Including this value in the block will allow validation of currently
+un-validated metadata. Specifically, including this value will allow Tendermint
+to validate that the `proposer_address` in the block is correct. Without knowing
+the locked round number, Tendermint cannot calculate which validator was supposed
+to propose a height. Because of this, our validation logic does not check that
+the `proposer_address` included in the block corresponds to the validator that
+proposed the height. Instead, the validation logic simply checks that the value
+is an address of one of the known validators.
+
+Currently, we include this value in the `Commit` for height `H` which is
+written into the block at height `H+1`. Tendermint can add this value directly
+into the block instead of delaying it until the next block.
 
 ### Updates to propagation
 
@@ -180,38 +225,6 @@ is no longer used at all and can be deleted from the block.
 
 ## Add Proof Of Lock Round Number To Header
 
-The *proof of lock round* is the round of consensus for a height in which the
-Tendermint algorithm observed a super majority of voting power on the network for
-a block.
-
-Including this value in the block will allow validation of currently
-un-validated metadata. Specifically, including this value will allow Tendermint
-to validate that the `proposer_address` in the block is correct. Without knowing
-the locked round number, Tendermint cannot calculate which validator was supposed
-to propose a height. Because of this, our validation logic does not check that
-the `proposer_address` included in the block corresponds to the validator that
-proposed the height. Instead, the validation logic simply checks that the value
-is an address of one of the known validators.
-
-Currently, we include this value in the `Commit` for height `H` which is
-written into the block at height `H+1`. Tendermint can add this value directly
-into the block instead of delaying it until the next block.
-
-## Remove Chain ID
-
-The `chain_id` is a string selected by the chain operators, usually a
-human-readable name for the network. This value is immutable for the lifetime
-of the chain and is defined in the genesis file. Because this value never
-changes, there's no particular reason to maintain it in every block. Aesthetically,
-it is somewhat pleasing, as if every block in a chain is stamped as part of
-some particular chain. 
-
-I'm pretty ambivalent on removing it from the structure
-and would be in favor of keeping it despite its redundancy. Additionally, if
-we are worried about the amount of space used by storing this with every block,
-we could easily store the value separately from the block structure in the
-database, although on-disk compression should be able to handle de-duplication
-of that data without any additional code.
 
 ## Remove Validators Hash
 
