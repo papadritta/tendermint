@@ -91,7 +91,60 @@ message BlockID {
 }
 ```
 
+### On Tendermint Blocks
+
+#### What is a Tendermint 'Block'?
+
+A block is the structure produced as the result of an instance of the Tendermint
+consensus algorithm. At its simplest, the 'block' can be represented as a Merkle
+root hash of all of the data used to construct and produce the hash. Our current
+block proto structure includes _far_ from all of the data used to produce the
+hashes included in the block.
+
+It does not contain the full `AppState`, it does not contain the `ConsensusParams`,
+nor the `LastResults`, nor the `ValidatorSet`. Additionally, the structure of
+the block message is not inherently tied to this Merkle root hash. Different
+structures of the same set of data could trivially be used to construct the
+exact same hash. The thing we currently call the 'Block' is really just a view
+into a subset of the data used to construct the root hash. Large amounts of it
+can be removed or added to the 'Block' as long as alternative methods exist to
+query and retrieve the constituent values.
+
+#### Why this digression?
+
+This digression is aimed at informing what it means to consolidate 'fields' in the
+'block'. The discussion of what should be included in the block can be teased
+apart into a few different lines of inquiry.
+
+1. What values need to be included as part of the Merkle tree so that the
+consensus algorithm can use proof-of-stake consensus to validate all of the
+properties of the chain that we would like?
+1. How can we create views of the data that can be easily retrieved, stored, and
+verified by the relevant protocols.
+
+These two concerns are intertwined at the moment as a result
+of how we store and propagate our data but they don't necessarily need to be.
+This document focuses primarily on the first concern by suggesting fields that
+can be completely removed without any loss in the function of our consensus
+algorithm.
+
+This document also suggests ways that we may update our storage and propagation
+mechanisms to better take advantage of Merkle tree nature of our data.
+
 ## Discussion 
+
+### Data to completely remove
+
+This section proposes a list of data that could be completely removed from the 
+Merkle tree with no loss to the functionality of our consensus algorithm.
+
+#### CommitSig.timestamp
+
+This field was once used to 
+
+### Updates to propagation
+
+### Updates to views
 
 This section proposes a list of changes to the current block structure accompanied
 by discussion of the merits of the changes. Where the change is possible but
@@ -116,7 +169,9 @@ validator set each time it encounters a block with a `validators_hash` that the
 client had not previously encountered. In an experimental [run][chain-experiment]
 on the Cosmos Hub, this appears to occur frequently. A program counting the
 validator set changes from height 5200791 to 5210791 counted 4297 changes in the
-validator hash. That's nearly half of the blocks in the range. This change appears
+validator hash. That's nearly half of the blocks in the range. 
+
+This change appears
 
 The `timestamp` field is no longer meaningful. This field was previously used
 to create the block time when the BFTTime algorithm was in use. With the
@@ -171,8 +226,8 @@ header. # How does this impact the light client?
 
 With the addition of `round` to the header, there is no _strong_ reason to keep
 the `proposer_address` field. This value can be calculated by repeatedly
-running the [Proposer Selection Algorithm][] `round` times to determine which
-validator proposed the block. # I do like the aesthetics but it's pretty much redundant.
+running the [Proposer Selection Algorithm][proposer-selection] `round` times to determine which
+validator proposed the block.
 
 ## Transition to a SignatureSet field form CommitSig
 
